@@ -87,22 +87,14 @@
       });
       
       const controls = new THREE.PointerLockControls( camera, document.body );
-
       // add event listener to show/hide a UI (e.g. the game's menu)
-
       controls.addEventListener( 'lock', function () {
-
       } );
-
       controls.addEventListener( 'unlock', function () {
-
-      } );
-      
+      } );     
       document.body.addEventListener('click', () => {
         controls.lock();
       });
-
-
     })();
 
   </script>
