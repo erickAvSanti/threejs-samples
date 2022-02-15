@@ -1,0 +1,101 @@
+<html>
+  <head>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://threejs.org/examples/js/controls/PointerLockControls.js"></script>
+
+    <style>
+      html,body, canvas{
+        padding: 0;
+        margin: 0;
+      }
+      body{
+        overflow: hidden;
+      }
+
+      #full_screen{
+        position: absolute;
+        top: 0;
+        right: 0;
+        z-index: 10;
+        background-color: white;
+        color: black;
+        padding: 5px 10px;
+        margin: 0px;
+        opacity: 0.7;
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="threejs_render"></canvas>
+    <div id="full_screen">fullscreen</div>
+  </body>
+
+
+  <script>
+    (function() {
+      const camera = new THREE.PerspectiveCamera( 70, window.innerWidth / window.innerHeight, 0.01, 10 );
+      camera.position.z = 1;
+
+      const scene = new THREE.Scene();
+
+      const geometry = new THREE.BoxGeometry( 1, 1, 1 );
+      const material = new THREE.MeshNormalMaterial();
+
+      let mesh = new THREE.Mesh( geometry, material );
+      mesh.position.z = -2;
+      scene.add( mesh );
+      
+      mesh = mesh.clone();
+      mesh.position.z = -2;
+      mesh.position.x = 4;
+      scene.add(mesh);
+      
+      mesh = mesh.clone();
+      mesh.position.z = -2;
+      mesh.position.x = -4;
+      scene.add(mesh);
+
+      const canvas = document.getElementById('threejs_render');
+      const renderer = new THREE.WebGLRenderer( {canvas: canvas, antialias: true } );
+      renderer.setSize( window.innerWidth, window.innerHeight );
+      renderer.setAnimationLoop( animation );
+      // renderer.setClearColor(new THREE.Color(100,0,0), 1);
+
+      // animation
+
+      function animation( time ) {
+        renderer.render( scene, camera );
+      }
+
+      window.addEventListener('resize', function(){
+        renderer.setSize( window.innerWidth, window.innerHeight );
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
+      }, false);
+
+
+      document.getElementById('full_screen').addEventListener('click', (evt) => {
+        evt.preventDefault();
+        evt.stopPropagation();
+        if (!document.fullscreenElement) {
+            document.body.requestFullscreen();
+        } else {
+          if (document.exitFullscreen) {
+            document.exitFullscreen();
+          }
+        }
+      });
+      
+      const controls = new THREE.PointerLockControls( camera, document.body );
+      // add event listener to show/hide a UI (e.g. the game's menu)
+      controls.addEventListener( 'lock', function () {
+      } );
+      controls.addEventListener( 'unlock', function () {
+      } );     
+      document.body.addEventListener('click', () => {
+        controls.lock();
+      });
+    })();
+
+  </script>
+</html>
