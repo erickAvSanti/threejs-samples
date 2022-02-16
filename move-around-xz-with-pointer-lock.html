@@ -2,6 +2,7 @@
   <head>
     <meta name="viewport" content="width=device-width, height=device-height, initial-scale=1.0, maximum-scale=1.0, user-scalable=0">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://threejs.org/examples/js/controls/PointerLockControls.js"></script>
 
     <style>
       html,body, canvas{
@@ -41,9 +42,19 @@
       const geometry = new THREE.BoxGeometry( 1, 1, 1 );
       const material = new THREE.MeshNormalMaterial();
 
-      const mesh = new THREE.Mesh( geometry, material );
+      let mesh = new THREE.Mesh( geometry, material );
       mesh.position.z = -2;
       scene.add( mesh );
+      
+      mesh = mesh.clone();
+      mesh.position.z = -2;
+      mesh.position.x = 4;
+      scene.add(mesh);
+      
+      mesh = mesh.clone();
+      mesh.position.z = -2;
+      mesh.position.x = -4;
+      scene.add(mesh);
 
       const canvas = document.getElementById('threejs_render');
       const renderer = new THREE.WebGLRenderer( {canvas: canvas, antialias: true } );
@@ -54,8 +65,7 @@
       // animation
 
       function animation( time ) {
-        mesh.rotation.x += 0.01;
-        mesh.rotation.y += 0.01;
+        detectCameraMovement();
         renderer.render( scene, camera );
       }
 
@@ -66,7 +76,9 @@
       }, false);
 
 
-      document.getElementById('full_screen').addEventListener('click', () => {
+      document.getElementById('full_screen').addEventListener('click', (evt) => {
+        evt.preventDefault();
+        evt.stopPropagation();
         if (!document.fullscreenElement) {
             document.body.requestFullscreen();
         } else {
@@ -75,8 +87,50 @@
           }
         }
       });
-    })();
+      
+      const controls = new THREE.PointerLockControls( camera, document.body );
+      controls.addEventListener( 'lock', function () {
+      } );
+      controls.addEventListener( 'unlock', function () {
+      } );     
+      document.body.addEventListener('click', () => {
+        controls.lock();
+      });
 
+
+      let moveForwardFlag = false;
+      let moveBackwardFlag = false;
+      let moveRightFlag = false;
+      let moveLeftFlag = false;
+      let _moveForward = 0;
+      let _moveRight = 0;
+
+      
+      document.addEventListener('keydown', (evt) => {
+        if(evt.key === 'w') moveForwardFlag = true;
+        if(evt.key === 's') moveBackwardFlag = true;
+        if(evt.key === 'a') moveRightFlag = true;
+        if(evt.key === 'd') moveLeftFlag = true;
+      });
+      document.addEventListener('keyup', (evt) => {
+        if(evt.key === 'w') moveForwardFlag = false;
+        if(evt.key === 's') moveBackwardFlag = false;
+        if(evt.key === 'a') moveRightFlag = false;
+        if(evt.key === 'd') moveLeftFlag = false;
+      });
+
+      function detectCameraMovement(){
+        const factor = 0.01;
+        _moveForward = 0;
+        _moveRight = 0;
+        if(moveForwardFlag) _moveForward ++;
+        if(moveBackwardFlag) _moveForward --;
+        if(moveRightFlag) _moveRight --;
+        if(moveLeftFlag) _moveRight ++;
+        controls.moveForward(_moveForward * factor);
+        controls.moveRight(_moveRight * factor);
+      }
+    })();
 
   </script>
 </html>
