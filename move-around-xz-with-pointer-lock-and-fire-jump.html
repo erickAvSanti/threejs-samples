@@ -1,0 +1,270 @@
+<html>
+  <head>
+    <meta name="viewport" content="width=device-width, height=device-height, initial-scale=1.0, maximum-scale=1.0, user-scalable=0">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://threejs.org/examples/js/controls/PointerLockControls.js"></script>
+
+    <style>
+      html,body, canvas{
+        padding: 0;
+        margin: 0;
+      }
+      body{
+        overflow: hidden;
+      }
+
+      #full_screen{
+        position: absolute;
+        top: 0;
+        right: 0;
+        z-index: 10;
+        background-color: white;
+        color: black;
+        padding: 5px 10px;
+        margin: 0px;
+        opacity: 0.7;
+      }
+      #atop_render{
+        position: absolute;
+        left: 0;
+        top: 0;
+        z-index: 10;
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="threejs_render"></canvas>
+    <canvas id="atop_render"></canvas>
+    <div id="full_screen">fullscreen</div>
+  </body>
+
+
+  <script>
+    (function() {
+
+
+      let moveForwardFlag = false;
+      let moveBackwardFlag = false;
+      let moveRightFlag = false;
+      let moveLeftFlag = false;
+      let _moveForward = 0;
+      let _moveRight = 0;
+      let deltaTime = 0;
+      let currentTimeStamp = 0;
+      let previousTimeStamp = 0;
+      const gravity = new THREE.Vector(0,-9.8, 0) // 9.8 m/s2
+
+      const canvas2d = document.getElementById('atop_render');
+      const canvas2dCtx = canvas2d.getContext('2d');
+
+
+      const camera = new THREE.PerspectiveCamera( 70, window.innerWidth / window.innerHeight, 0.01, 10 );
+      camera.position.z = 1;
+
+      const scene = new THREE.Scene();
+
+      const geometry = new THREE.BoxGeometry( 1, 1, 1 );
+      const material = new THREE.MeshNormalMaterial();
+
+      let mesh = new THREE.Mesh( geometry, material );
+      mesh.position.z = -2;
+      scene.add( mesh );
+      
+      mesh = mesh.clone();
+      mesh.position.z = -2;
+      mesh.position.x = 4;
+      scene.add(mesh);
+      
+      mesh = mesh.clone();
+      mesh.position.z = -2;
+      mesh.position.x = -4;
+      scene.add(mesh);
+
+      const light = new THREE.AmbientLight( 0x404040 ); // soft white light
+      scene.add( light );
+
+      const canvas = document.getElementById('threejs_render');
+      const renderer = new THREE.WebGLRenderer( {canvas: canvas, antialias: true } );
+      renderer.setSize( window.innerWidth, window.innerHeight );
+      renderer.setAnimationLoop( animation );
+      setSize2dRender();
+      drawOn2dRender();
+
+      // animation
+
+      function animation( time ) {
+        previousTimeStamp = currentTimeStamp;
+        currentTimeStamp = time;
+        deltaTime = time - previousTimeStamp;
+        detectCameraMovement();
+        shootBulletsAction();
+        renderer.render( scene, camera );
+      }
+
+      window.addEventListener('resize', function(){
+        renderer.setSize( window.innerWidth, window.innerHeight );
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
+        setSize2dRender();
+        drawOn2dRender();
+      }, false);
+
+
+      document.getElementById('full_screen').addEventListener('click', (evt) => {
+        evt.preventDefault();
+        evt.stopPropagation();
+        if (!document.fullscreenElement) {
+            document.body.requestFullscreen();
+        } else {
+          if (document.exitFullscreen) {
+            document.exitFullscreen();
+          }
+        }
+      });
+      
+      const controls = new THREE.PointerLockControls( camera, document.body );
+      controls.addEventListener( 'lock', function () {
+      } );
+      controls.addEventListener( 'unlock', function () {
+      } );     
+      document.body.addEventListener('click', () => {
+        controls.lock();
+      });
+
+      
+      document.addEventListener('keydown', (evt) => {
+        if(evt.key === 'w') moveForwardFlag = true;
+        if(evt.key === 's') moveBackwardFlag = true;
+        if(evt.key === 'a') moveRightFlag = true;
+        if(evt.key === 'd') moveLeftFlag = true;
+      });
+      document.addEventListener('keyup', (evt) => {
+        if(evt.key === 'w') moveForwardFlag = false;
+        if(evt.key === 's') moveBackwardFlag = false;
+        if(evt.key === 'a') moveRightFlag = false;
+        if(evt.key === 'd') moveLeftFlag = false;
+      });
+
+      function detectCameraMovement(){
+        const factor = 0.01;
+        _moveForward = 0;
+        _moveRight = 0;
+        if(moveForwardFlag) _moveForward ++;
+        if(moveBackwardFlag) _moveForward --;
+        if(moveRightFlag) _moveRight --;
+        if(moveLeftFlag) _moveRight ++;
+        controls.moveForward(_moveForward * factor);
+        controls.moveRight(_moveRight * factor);
+      }
+
+      let mouseShootEnabled = false;
+      let bullets = [];
+      let countDownToShoot = 0;
+      const geoBullet = new THREE.SphereGeometry( 0.1, 12, 12 );
+      const matBullet = new THREE.MeshBasicMaterial( { color: 0xffff00 } );
+      document.body.addEventListener('mousedown', () => {
+        mouseShootEnabled = true;
+      });
+      document.body.addEventListener('mouseup', () => {
+        mouseShootEnabled = false;
+      });
+      setInterval(() => {
+        if(countDownToShoot > 0){
+          countDownToShoot -= 1;
+        }
+      }, 10);
+      function shootBulletsAction(){
+        moveBullets();
+        if(!controls.isLocked)return;
+        if(mouseShootEnabled){
+          if(!countDownToShoot){
+
+            let sphere = null;
+            let element = null;
+
+            // Recycling bullets
+            const elements = bullets.filter(obj => !obj.enabled);
+            if(elements.length > 0){
+              element = elements[0];
+              sphere = element.mesh;
+              element.enabled = true;
+              element.mesh.visible = true;
+              element.direction = null;
+            }else{
+              // if we can't recycle one, let's create another bullet.
+              sphere = new THREE.Mesh( geoBullet, matBullet );
+              element = {
+                direction: null, // to our bullet direction after release it. 
+                mesh: sphere, // the mesh
+                enabled: true // false: if we might recycle, true: if we might not.
+              };
+              scene.add(sphere);
+              bullets.push(element);
+            }
+            sphere.position.copy(camera.position);// setting up to our current position
+            
+            countDownToShoot = 50;
+          }
+        }else{
+          countDownToShoot = 0;
+        }
+      }
+      function moveBullets(){
+        bullets.forEach(element => {
+          if(!element.direction){
+            element.direction = new THREE.Vector3();
+            controls.getDirection(element.direction);
+          }
+          if(element.mesh.position.length() > 100) {
+            // recycling after reaching out to 100 units of distance.
+            element.enabled = false;
+            element.mesh.visible = false;
+          }else{
+            element.mesh.position.addScaledVector(element.direction, 0.2);
+          }
+        });
+      }
+
+
+
+      function setSize2dRender(){
+        canvas2d.width = window.innerWidth;
+        canvas2d.height = window.innerWidth;
+      }
+      function drawOn2dRender(){
+        canvas2dCtx.clearRect(0, 0, window.innerWidth, window.innerHeight);
+        canvas2dCtx.beginPath();
+        canvas2dCtx.strokeStyle = 'white';
+        canvas2dCtx.lineWidth = 3;
+        canvas2dCtx.arc(window.innerWidth/2, window.innerHeight/2, 50, 0, 2 * Math.PI);
+        canvas2dCtx.stroke();
+
+
+        //drawing line
+        canvas2dCtx.beginPath();
+        canvas2dCtx.moveTo(window.innerWidth / 2, window.innerHeight / 2 - 60);
+        canvas2dCtx.lineTo(window.innerWidth / 2, window.innerHeight / 2 + 60);
+        canvas2dCtx.stroke();
+        //drawing line
+        canvas2dCtx.beginPath();
+        canvas2dCtx.moveTo(window.innerWidth / 2 - 60, window.innerHeight / 2);
+        canvas2dCtx.lineTo(window.innerWidth / 2 + 60, window.innerHeight / 2);
+        canvas2dCtx.stroke();
+      }
+
+      function physicsJumpCalcFinalVelocity(startVelocity, deltaTime){
+        return startVelocity.clone().sub(gravity.clone().multiplyScalar(deltaTime / 1000.0));
+      }
+      function physicsJumpCalcLastDistance(startVelocity, finalVelocity){
+        return vector3Pow(finalVelocity, 2).sub(vector3Pow(startVelocity, 2)).multiply(vector3Pow(gravity.clone().multiplyScalar(2), -1));
+      }
+
+      function vector3Pow(vector3, scalar){
+        return new THREE.Vector3(Math.pow(v.x, scalar), Math.pow(v.y, scalar), Math.pow(v.z, scalar));
+      }
+
+
+    })();
+
+  </script>
+</html>
