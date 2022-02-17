@@ -53,7 +53,7 @@
       let currentTimeStamp = 0;
       let previousTimeStamp = 0;
       const gravity = -9.8 // 9.8 m/s2
-      let jumpStartVelocity = 0;
+      let jumpInitialVelocity = 0;
       let jumpFinalVelocity = 0;
       let jumpFlag = false;
 
@@ -258,11 +258,11 @@
         canvas2dCtx.stroke();
       }
 
-      function physicsJumpCalcjumpFinalVelocity(jumpStartVelocity, deltaTime){
-        return jumpStartVelocity - gravity * deltaTime / 1000.0;
+      function physicsJumpCalcjumpFinalVelocity(jumpInitialVelocity, deltaTime){
+        return jumpInitialVelocity - gravity * deltaTime / 1000.0;
       }
-      function physicsJumpCalcLastDistance(jumpStartVelocity, jumpFinalVelocity){
-        return ( Math.pow(jumpFinalVelocity, 2) - Math.pow(jumpStartVelocity, 2) ) / (2 * gravity);
+      function physicsJumpCalcLastDistance(jumpInitialVelocity, jumpFinalVelocity){
+        return ( Math.pow(jumpFinalVelocity, 2) - Math.pow(jumpInitialVelocity, 2) ) / (2 * gravity);
       }
 
       function detectJumpAction(){
