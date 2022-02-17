@@ -52,7 +52,10 @@
       let deltaTime = 0;
       let currentTimeStamp = 0;
       let previousTimeStamp = 0;
-      const gravity = new THREE.Vector(0,-9.8, 0) // 9.8 m/s2
+      const gravity = -9.8 // 9.8 m/s2
+      let jumpStartVelocity = 0;
+      let jumpFinalVelocity = 0;
+      let jumpFlag = false;
 
       const canvas2d = document.getElementById('atop_render');
       const canvas2dCtx = canvas2d.getContext('2d');
@@ -98,6 +101,7 @@
         deltaTime = time - previousTimeStamp;
         detectCameraMovement();
         shootBulletsAction();
+        detectJumpAction();
         renderer.render( scene, camera );
       }
 
@@ -143,6 +147,8 @@
         if(evt.key === 's') moveBackwardFlag = false;
         if(evt.key === 'a') moveRightFlag = false;
         if(evt.key === 'd') moveLeftFlag = false;
+
+        jumpFlag = true;
       });
 
       function detectCameraMovement(){
@@ -252,15 +258,17 @@
         canvas2dCtx.stroke();
       }
 
-      function physicsJumpCalcFinalVelocity(startVelocity, deltaTime){
-        return startVelocity.clone().sub(gravity.clone().multiplyScalar(deltaTime / 1000.0));
+      function physicsJumpCalcjumpFinalVelocity(jumpStartVelocity, deltaTime){
+        return jumpStartVelocity - gravity * deltaTime / 1000.0;
       }
-      function physicsJumpCalcLastDistance(startVelocity, finalVelocity){
-        return vector3Pow(finalVelocity, 2).sub(vector3Pow(startVelocity, 2)).multiply(vector3Pow(gravity.clone().multiplyScalar(2), -1));
+      function physicsJumpCalcLastDistance(jumpStartVelocity, jumpFinalVelocity){
+        return ( Math.pow(jumpFinalVelocity, 2) - Math.pow(jumpStartVelocity, 2) ) / (2 * gravity);
       }
 
-      function vector3Pow(vector3, scalar){
-        return new THREE.Vector3(Math.pow(v.x, scalar), Math.pow(v.y, scalar), Math.pow(v.z, scalar));
+      function detectJumpAction(){
+        if(jumpFlag){
+
+        }
       }
 
 
