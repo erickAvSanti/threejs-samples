@@ -61,7 +61,7 @@
       const canvas2dCtx = canvas2d.getContext('2d');
 
 
-      const camera = new THREE.PerspectiveCamera( 70, window.innerWidth / window.innerHeight, 0.01, 10 );
+      const camera = new THREE.PerspectiveCamera( 70, window.innerWidth / window.innerHeight, 0.01, 1000 );
       camera.position.z = 1;
 
       const scene = new THREE.Scene();
@@ -99,9 +99,9 @@
         previousTimeStamp = currentTimeStamp;
         currentTimeStamp = time;
         deltaTime = time - previousTimeStamp;
-        detectCameraMovement();
         shootBulletsAction();
-        detectJumpAction();
+        detectJumpAction(deltaTime);
+        detectCameraMovement();
         renderer.render( scene, camera );
       }
 
@@ -141,18 +141,17 @@
         if(evt.key === 's') moveBackwardFlag = true;
         if(evt.key === 'a') moveRightFlag = true;
         if(evt.key === 'd') moveLeftFlag = true;
+        if(evt.code === 'Space') jumpFlag = true;
       });
       document.addEventListener('keyup', (evt) => {
         if(evt.key === 'w') moveForwardFlag = false;
         if(evt.key === 's') moveBackwardFlag = false;
         if(evt.key === 'a') moveRightFlag = false;
         if(evt.key === 'd') moveLeftFlag = false;
-
-        jumpFlag = true;
       });
 
       function detectCameraMovement(){
-        const factor = 0.01;
+        const factor = 0.07;
         _moveForward = 0;
         _moveRight = 0;
         if(moveForwardFlag) _moveForward ++;
@@ -258,18 +257,29 @@
         canvas2dCtx.stroke();
       }
 
-      function physicsJumpCalcjumpFinalVelocity(jumpInitialVelocity, deltaTime){
-        return jumpInitialVelocity - gravity * deltaTime / 1000.0;
+      function physicsJumpCalcFinalVelocity(jumpInitialVelocity, deltaTime){
+        return jumpInitialVelocity + gravity * deltaTime / 1000.0;
       }
       function physicsJumpCalcLastDistance(jumpInitialVelocity, jumpFinalVelocity){
         return ( Math.pow(jumpFinalVelocity, 2) - Math.pow(jumpInitialVelocity, 2) ) / (2 * gravity);
       }
 
-      function detectJumpAction(){
+      function detectJumpAction(deltaTime){
         if(jumpFlag){
           if(jumpFinalVelocity == 0){
-            // TODO FORMULA
+            jumpInitialVelocity = 5;
           }
+        }
+        if( jumpInitialVelocity != 0 ){
+          jumpFinalVelocity = physicsJumpCalcFinalVelocity(jumpInitialVelocity, deltaTime);
+          const distance = physicsJumpCalcLastDistance(jumpInitialVelocity, jumpFinalVelocity);
+          camera.position.y += distance;
+          if(camera.position.y < 0 /* OR there is a collision with any object*/) {
+            camera.position.y = 0; // reset to ZERO or set the top position of object collision.
+            jumpFinalVelocity = jumpInitialVelocity = 0;
+            jumpFlag = false;
+          }
+          jumpInitialVelocity = jumpFinalVelocity;
         }
       }
 
