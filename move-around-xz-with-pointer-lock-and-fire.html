@@ -24,16 +24,36 @@
         margin: 0px;
         opacity: 0.7;
       }
+      #atop_render{
+        position: absolute;
+        left: 0;
+        top: 0;
+        z-index: 10;
+      }
     </style>
   </head>
   <body>
     <canvas id="threejs_render"></canvas>
+    <canvas id="atop_render"></canvas>
     <div id="full_screen">fullscreen</div>
   </body>
 
 
   <script>
     (function() {
+
+
+      let moveForwardFlag = false;
+      let moveBackwardFlag = false;
+      let moveRightFlag = false;
+      let moveLeftFlag = false;
+      let _moveForward = 0;
+      let _moveRight = 0;
+
+      const canvas2d = document.getElementById('atop_render');
+      const canvas2dCtx = canvas2d.getContext('2d');
+
+
       const camera = new THREE.PerspectiveCamera( 70, window.innerWidth / window.innerHeight, 0.01, 10 );
       camera.position.z = 1;
 
@@ -63,7 +83,8 @@
       const renderer = new THREE.WebGLRenderer( {canvas: canvas, antialias: true } );
       renderer.setSize( window.innerWidth, window.innerHeight );
       renderer.setAnimationLoop( animation );
-      // renderer.setClearColor(new THREE.Color(100,0,0), 1);
+      setSize2dRender();
+      drawOn2dRender();
 
       // animation
 
@@ -77,6 +98,8 @@
         renderer.setSize( window.innerWidth, window.innerHeight );
         camera.aspect = window.innerWidth / window.innerHeight;
         camera.updateProjectionMatrix();
+        setSize2dRender();
+        drawOn2dRender();
       }, false);
 
 
@@ -100,14 +123,6 @@
       document.body.addEventListener('click', () => {
         controls.lock();
       });
-
-
-      let moveForwardFlag = false;
-      let moveBackwardFlag = false;
-      let moveRightFlag = false;
-      let moveLeftFlag = false;
-      let _moveForward = 0;
-      let _moveRight = 0;
 
       
       document.addEventListener('keydown', (evt) => {
@@ -202,6 +217,34 @@
           }
         });
       }
+
+
+
+      function setSize2dRender(){
+        canvas2d.width = window.innerWidth;
+        canvas2d.height = window.innerWidth;
+      }
+      function drawOn2dRender(){
+        canvas2dCtx.clearRect(0, 0, window.innerWidth, window.innerHeight);
+        canvas2dCtx.beginPath();
+        canvas2dCtx.strokeStyle = 'white';
+        canvas2dCtx.lineWidth = 3;
+        canvas2dCtx.arc(window.innerWidth/2, window.innerHeight/2, 50, 0, 2 * Math.PI);
+        canvas2dCtx.stroke();
+
+
+        //drawing line
+        canvas2dCtx.beginPath();
+        canvas2dCtx.moveTo(window.innerWidth / 2, window.innerHeight / 2 - 60);
+        canvas2dCtx.lineTo(window.innerWidth / 2, window.innerHeight / 2 + 60);
+        canvas2dCtx.stroke();
+        //drawing line
+        canvas2dCtx.beginPath();
+        canvas2dCtx.moveTo(window.innerWidth / 2 - 60, window.innerHeight / 2);
+        canvas2dCtx.lineTo(window.innerWidth / 2 + 60, window.innerHeight / 2);
+        canvas2dCtx.stroke();
+      }
+
 
     })();
 
