@@ -53,8 +53,8 @@
       let currentTimeStamp = 0;
       let previousTimeStamp = 0;
       const gravity = -9.8 // 9.8 m/s2
-      let jumpInitialVelocity = 0;
-      let jumpFinalVelocity = 0;
+      let jumpInitialVelocity = 0; // m/s
+      let jumpFinalVelocity = 0; // m/s
       let jumpFlag = false;
 
       const canvas2d = document.getElementById('atop_render');
@@ -258,6 +258,9 @@
       }
 
       function physicsJumpCalcFinalVelocity(jumpInitialVelocity, deltaTime){
+        /*
+        deltaTime is divided by 1000 because it is in milliseconds, so we need to bring it up to seconds.
+        */
         return jumpInitialVelocity + gravity * deltaTime / 1000.0;
       }
       function physicsJumpCalcLastDistance(jumpInitialVelocity, jumpFinalVelocity){
