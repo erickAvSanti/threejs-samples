@@ -208,7 +208,7 @@
             }
             sphere.position.copy(camera.position);// setting up to our current position
             
-            countDownToShoot = 50;
+            countDownToShoot = 10;// change it for a better frequency of shooting bullets
           }
         }else{
           countDownToShoot = 0;
@@ -245,12 +245,12 @@
         canvas2dCtx.stroke();
 
 
-        //drawing line
+        //drawing vertical line
         canvas2dCtx.beginPath();
         canvas2dCtx.moveTo(window.innerWidth / 2, window.innerHeight / 2 - 60);
         canvas2dCtx.lineTo(window.innerWidth / 2, window.innerHeight / 2 + 60);
         canvas2dCtx.stroke();
-        //drawing line
+        //drawing horizontal line
         canvas2dCtx.beginPath();
         canvas2dCtx.moveTo(window.innerWidth / 2 - 60, window.innerHeight / 2);
         canvas2dCtx.lineTo(window.innerWidth / 2 + 60, window.innerHeight / 2);
@@ -269,8 +269,8 @@
 
       function detectJumpAction(deltaTime){
         if(jumpFlag){
-          if(jumpFinalVelocity == 0){
-            jumpInitialVelocity = 5;
+          if(jumpFinalVelocity == 0){// if we are not in jumping action, up or down
+            jumpInitialVelocity = 5;// velocity onto Y-axis up
           }
         }
         if( jumpInitialVelocity != 0 ){
@@ -280,9 +280,9 @@
           if(camera.position.y < 0 /* OR there is a collision with any object*/) {
             camera.position.y = 0; // reset to ZERO or set the top position of object collision.
             jumpFinalVelocity = jumpInitialVelocity = 0;
-            jumpFlag = false;
+            jumpFlag = false; // if we are not currently jumping, let's set jumpFlag to false
           }
-          jumpInitialVelocity = jumpFinalVelocity;
+          jumpInitialVelocity = jumpFinalVelocity;// the las velocity become in the initial velocity for the next step
         }
       }
 
