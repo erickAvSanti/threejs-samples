@@ -175,6 +175,7 @@
             data.downloaded = true;// if you want to use inside any code for further revision
           }
           if(progressInfoXHR){
+            console.log(`${data.title}, loaded = ${progressInfoXHR.loaded}, total = ${progressInfoXHR.total}`);
             //printing the downloading progress status
             divElement.innerHTML = `${data.title} (${(progressInfoXHR.loaded / progressInfoXHR.total * 100).toFixed(2)}%)`;
           }
@@ -228,17 +229,17 @@
       //calling our multiple downloading objects who contains files.
       downloadMultipleGLTF([
         {
-          title: 'ball test 1', // its title
+          title: 'green ball', // its title
           url: '/assets/gltf/green1_ball.gltf', // the source file
           position: new THREE.Vector3(0,0,0),// the desired position for this element
         },
         {
-          title: 'ball test',
+          title: 'blue ball',
           url: '/assets/gltf/blue_ball.gltf',
           position: new THREE.Vector3(3,0,0),
         },
         {
-          title: 'ball test 2',
+          title: 'yellow ball',
           url: '/assets/gltf/yellow_ball.gltf',
           position: new THREE.Vector3(-3,0,0),
         },
