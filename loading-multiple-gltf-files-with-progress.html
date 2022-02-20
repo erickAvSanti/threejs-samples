@@ -1,0 +1,249 @@
+<html>
+  <head>
+    <meta name="viewport" content="width=device-width, height=device-height, initial-scale=1.0, maximum-scale=1.0, user-scalable=0">
+    <script src="/three.137.min.js"></script>
+    <script src="https://threejs.org/examples/js/controls/PointerLockControls.js"></script>
+    <script src="https://threejs.org/examples/js/loaders/GLTFLoader.js"></script>
+    <script src="https://threejs.org/examples/js/loaders/DRACOLoader.js"></script>
+
+    <style>
+      html,body, canvas{
+        padding: 0;
+        margin: 0;
+      }
+      body{
+        overflow: hidden;
+      }
+
+      #full_screen{
+        position: absolute;
+        top: 0;
+        right: 0;
+        z-index: 10;
+        background-color: white;
+        color: black;
+        padding: 5px 10px;
+        margin: 0px;
+        opacity: 0.7;
+      }
+      #progress{
+        position: absolute;
+        top: 0;
+        left: 0;
+        z-index: 10;
+        background-color: #ffffffab;
+        padding: 3px 5px;
+      }
+      #progress>div{
+
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="threejs_render"></canvas>
+    <div id="full_screen">fullscreen</div>
+    <div id="progress"></div>
+  </body>
+
+
+  <script>
+    (function() {
+      const gltfLoader = new THREE.GLTFLoader();
+      const dracoLoader = new THREE.DRACOLoader();
+      dracoLoader.setDecoderPath( 'https://github.com/mrdoob/three.js/tree/master/examples/js/libs/draco/' );
+      gltfLoader.setDRACOLoader( dracoLoader );
+
+      const camera = new THREE.PerspectiveCamera( 60, window.innerWidth / window.innerHeight, 0.01, 1000 );
+      camera.position.z = 1;
+
+      const scene = new THREE.Scene();
+
+      const geometry = new THREE.BoxGeometry( 1, 1, 1 );
+      const material = new THREE.MeshNormalMaterial();
+
+      let mesh = new THREE.Mesh( geometry, material );
+      mesh.position.z = -2;
+      scene.add( mesh );
+      
+      mesh = mesh.clone();
+      mesh.position.z = -2;
+      mesh.position.x = 4;
+      scene.add(mesh);
+      
+      mesh = mesh.clone();
+      mesh.position.z = -2;
+      mesh.position.x = -4;
+      scene.add(mesh);
+
+      const canvas = document.getElementById('threejs_render');
+      const renderer = new THREE.WebGLRenderer( {canvas: canvas, antialias: true } );
+      renderer.setSize( window.innerWidth, window.innerHeight );
+      renderer.setAnimationLoop( animation );
+      const light = new THREE.AmbientLight( 0x404040 ); // soft white light
+      scene.add( light );
+      const directionalLight = new THREE.DirectionalLight( 0xffffff, 0.5 );
+      scene.add( directionalLight );
+      // renderer.setClearColor(new THREE.Color(100,0,0), 1);
+
+      // animation
+
+      function animation( time ) {
+        detectCameraMovement();
+        renderer.render( scene, camera );
+      }
+
+      window.addEventListener('resize', function(){
+        renderer.setSize( window.innerWidth, window.innerHeight );
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
+      }, false);
+
+
+      document.getElementById('full_screen').addEventListener('click', (evt) => {
+        evt.preventDefault();
+        evt.stopPropagation();
+        if (!document.fullscreenElement) {
+            document.body.requestFullscreen();
+        } else {
+          if (document.exitFullscreen) {
+            document.exitFullscreen();
+          }
+        }
+      });
+      
+      const controls = new THREE.PointerLockControls( camera, document.body );
+      controls.addEventListener( 'lock', function () {
+      } );
+      controls.addEventListener( 'unlock', function () {
+      } );     
+      document.body.addEventListener('click', () => {
+        controls.lock();
+      });
+
+
+      let moveForwardFlag = false;
+      let moveBackwardFlag = false;
+      let moveRightFlag = false;
+      let moveLeftFlag = false;
+      let _moveForward = 0;
+      let _moveRight = 0;
+
+      
+      document.addEventListener('keydown', (evt) => {
+        if(evt.key === 'w') moveForwardFlag = true;
+        if(evt.key === 's') moveBackwardFlag = true;
+        if(evt.key === 'a') moveRightFlag = true;
+        if(evt.key === 'd') moveLeftFlag = true;
+      });
+      document.addEventListener('keyup', (evt) => {
+        if(evt.key === 'w') moveForwardFlag = false;
+        if(evt.key === 's') moveBackwardFlag = false;
+        if(evt.key === 'a') moveRightFlag = false;
+        if(evt.key === 'd') moveLeftFlag = false;
+      });
+
+      function detectCameraMovement(){
+        const factor = 0.01;
+        _moveForward = 0;
+        _moveRight = 0;
+        if(moveForwardFlag) _moveForward ++;
+        if(moveBackwardFlag) _moveForward --;
+        if(moveRightFlag) _moveRight --;
+        if(moveLeftFlag) _moveRight ++;
+        controls.moveForward(_moveForward * factor);
+        controls.moveRight(_moveRight * factor);
+      }
+
+      function downloadMultipleGLTF(arrayGLTF){
+        let index = -1;
+        const progressElement = document.getElementById('progress');
+        // setting up elements DIV to reporting statuses
+        arrayGLTF.forEach(element => {
+          const divElement = document.createElement("div");
+          progressElement.appendChild(divElement);
+          divElement.innerHTML = `${element.title} (0%)`;// printing its title and percentage of downloading
+        });
+        function reportProgress(data, progressInfoXHR){
+          const divElement = document.querySelector("#progress>div:nth-child(" + (data.index + 1) + ")");
+          if(data.success){
+            // on response ends successfully
+            console.log(data);
+            const obj = data.success.scene;
+            obj.position.copy(data.position);
+            scene.add(obj);
+            data.success = null;// unset data.success
+            data.downloaded = true;// if you want to use inside any code for further revision
+          }
+          if(progressInfoXHR){
+            //printing the downloading progress status
+            divElement.innerHTML = `${data.title} (${(progressInfoXHR.loaded / progressInfoXHR.total * 100).toFixed(2)}%)`;
+          }
+          if(data.error){
+            // when error is raised
+            divElement.innerHTML = `${data.title} (error)`;
+          }
+        }
+        downloadNext();// starting with the first element
+        function downloadNext(){
+          index ++;
+          if(index < arrayGLTF.length){// if we can go through our array
+            const currentData = arrayGLTF[index];
+            currentData.index = index; // the index is used to find the div element for setting up its status
+
+            downloadAsync(currentData, reportProgress)
+            .then( onSucess => {
+              currentData.success = onSucess;// setting up its downloading result on "success" field
+              reportProgress(currentData, null);
+              downloadNext();
+            })
+            .catch( onError => {
+              currentData.error = onError;// when an error is raised, add field error with the error response
+              reportProgress(currentData, null);
+              downloadNext();
+            });
+          }
+        }
+
+        function downloadAsync(data, reportProgress){
+          return new Promise((resolve, reject) => {
+
+            gltfLoader.load(
+              // resource URL
+              data.url,
+              function ( gltf ) {
+                resolve(gltf); // if all goes well, call resolve with the success response
+              },
+              function ( xhr ) {
+                reportProgress(data, xhr);// reporting its current progress
+              },
+              function ( error ) {
+                reject(error);// when an error is raised, reject this
+              }
+            );
+          });
+        }
+
+      }
+
+      //calling our multiple downloading objects who contains files.
+      downloadMultipleGLTF([
+        {
+          title: 'ball test 1', // its title
+          url: '/assets/gltf/green1_ball.gltf', // the source file
+          position: new THREE.Vector3(0,0,0),// the desired position for this element
+        },
+        {
+          title: 'ball test',
+          url: '/assets/gltf/blue_ball.gltf',
+          position: new THREE.Vector3(3,0,0),
+        },
+        {
+          title: 'ball test 2',
+          url: '/assets/gltf/yellow_ball.gltf',
+          position: new THREE.Vector3(-3,0,0),
+        },
+      ]);
+    })();
+
+  </script>
+</html>
