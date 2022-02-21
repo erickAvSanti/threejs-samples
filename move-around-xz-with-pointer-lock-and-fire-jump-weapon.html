@@ -1,0 +1,423 @@
+<html>
+  <head>
+    <meta name="viewport" content="width=device-width, height=device-height, initial-scale=1.0, maximum-scale=1.0, user-scalable=0">
+    <script src="./three.137.min.js"></script>
+    <script src="https://threejs.org/examples/js/controls/PointerLockControls.js"></script>
+    <script src="https://threejs.org/examples/js/loaders/GLTFLoader.js"></script>
+    <script src="https://threejs.org/examples/js/loaders/DRACOLoader.js"></script>
+
+    <style>
+      html,body, canvas{
+        padding: 0;
+        margin: 0;
+      }
+      body{
+        overflow: hidden;
+      }
+
+      #full_screen{
+        position: absolute;
+        top: 0;
+        right: 0;
+        z-index: 10;
+        background-color: white;
+        color: black;
+        padding: 5px 10px;
+        margin: 0px;
+        opacity: 0.7;
+      }
+      #atop_render{
+        position: absolute;
+        left: 0;
+        top: 0;
+        z-index: 10;
+      }
+      #progress{
+        position: absolute;
+        top: 0;
+        left: 0;
+        z-index: 10;
+        background-color: #ffffffab;
+        padding: 3px 5px;
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="threejs_render"></canvas>
+    <canvas id="atop_render"></canvas>
+    <div id="full_screen">fullscreen</div>
+    <div id="progress"></div>
+  </body>
+
+
+  <script>
+    (function() {
+      const gltfLoader = new THREE.GLTFLoader();
+      const dracoLoader = new THREE.DRACOLoader();
+      dracoLoader.setDecoderPath( 'https://github.com/mrdoob/three.js/tree/master/examples/js/libs/draco/' );
+      gltfLoader.setDRACOLoader( dracoLoader );
+
+
+      let moveForwardFlag = false;
+      let moveBackwardFlag = false;
+      let moveRightFlag = false;
+      let moveLeftFlag = false;
+      let _moveForward = 0;
+      let _moveRight = 0;
+      let deltaTime = 0;
+      let currentTimeStamp = 0;
+      let previousTimeStamp = 0;
+      const gravity = -9.8 // 9.8 m/s2
+      let jumpInitialVelocity = 0; // m/s
+      let jumpFinalVelocity = 0; // m/s
+      let jumpFlag = false;
+
+      const canvas2d = document.getElementById('atop_render');
+      const canvas2dCtx = canvas2d.getContext('2d');
+      let shooter_weapon = null;
+
+      const gltfFiles = [
+        {
+          id: 'shooter_weapon',
+          title: 'shooter weapon',
+          url: './assets/gltf/weapon.gltf?v=1.0',
+          addedToScene: false,
+          mesh: null,
+        },
+      ];
+
+
+      const camera = new THREE.PerspectiveCamera( 70, window.innerWidth / window.innerHeight, 0.01, 1000 );
+      camera.position.z = 1;
+
+      const scene = new THREE.Scene();
+
+      const geometry = new THREE.BoxGeometry( 1, 1, 1 );
+      const material = new THREE.MeshNormalMaterial();
+
+      let mesh = new THREE.Mesh( geometry, material );
+      mesh.position.z = -2;
+      scene.add( mesh );
+      
+      mesh = mesh.clone();
+      mesh.position.z = -2;
+      mesh.position.x = 4;
+      scene.add(mesh);
+      
+      mesh = mesh.clone();
+      mesh.position.z = -2;
+      mesh.position.x = -4;
+      scene.add(mesh);
+
+      const light = new THREE.AmbientLight( 0x404040 ); // soft white light
+      scene.add( light );
+
+      const canvas = document.getElementById('threejs_render');
+      const renderer = new THREE.WebGLRenderer( {canvas: canvas, antialias: true } );
+      renderer.setSize( window.innerWidth, window.innerHeight );
+      renderer.setAnimationLoop( animation );
+      setSize2dRender();
+      drawOn2dRender();
+      const directionalLight = new THREE.DirectionalLight( 0xffffff, 0.5 );
+      scene.add( directionalLight );
+
+      // animation
+
+      function animation( time ) {
+        previousTimeStamp = currentTimeStamp;
+        currentTimeStamp = time;
+        deltaTime = time - previousTimeStamp;
+        shootBulletsAction();
+        detectJumpAction(deltaTime);
+        detectCameraMovement();
+        setDownloadedFiles();
+        setShooterWeaponProperties();
+        renderer.render( scene, camera );
+      }
+
+      window.addEventListener('resize', function(){
+        renderer.setSize( window.innerWidth, window.innerHeight );
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
+        setSize2dRender();
+        drawOn2dRender();
+      }, false);
+
+
+      document.getElementById('full_screen').addEventListener('click', (evt) => {
+        evt.preventDefault();
+        evt.stopPropagation();
+        if (!document.fullscreenElement) {
+            document.body.requestFullscreen();
+        } else {
+          if (document.exitFullscreen) {
+            document.exitFullscreen();
+          }
+        }
+      });
+      
+      const controls = new THREE.PointerLockControls( camera, document.body );
+      controls.addEventListener( 'lock', function () {
+      } );
+      controls.addEventListener( 'unlock', function () {
+      } );     
+      document.body.addEventListener('click', () => {
+        controls.lock();
+      });
+
+      
+      document.addEventListener('keydown', (evt) => {
+        if(evt.key === 'w') moveForwardFlag = true;
+        if(evt.key === 's') moveBackwardFlag = true;
+        if(evt.key === 'a') moveRightFlag = true;
+        if(evt.key === 'd') moveLeftFlag = true;
+        if(evt.code === 'Space') jumpFlag = true;
+      });
+      document.addEventListener('keyup', (evt) => {
+        if(evt.key === 'w') moveForwardFlag = false;
+        if(evt.key === 's') moveBackwardFlag = false;
+        if(evt.key === 'a') moveRightFlag = false;
+        if(evt.key === 'd') moveLeftFlag = false;
+      });
+
+      function detectCameraMovement(){
+        const factor = 0.07;
+        _moveForward = 0;
+        _moveRight = 0;
+        if(moveForwardFlag) _moveForward ++;
+        if(moveBackwardFlag) _moveForward --;
+        if(moveRightFlag) _moveRight --;
+        if(moveLeftFlag) _moveRight ++;
+        controls.moveForward(_moveForward * factor);
+        controls.moveRight(_moveRight * factor);
+      }
+
+      let mouseShootEnabled = false;
+      let bullets = [];
+      let countDownToShoot = 0;
+      const geoBullet = new THREE.SphereGeometry( 0.1, 12, 12 );
+      const matBullet = new THREE.MeshBasicMaterial( { color: 0xffff00 } );
+      document.body.addEventListener('mousedown', () => {
+        mouseShootEnabled = true;
+      });
+      document.body.addEventListener('mouseup', () => {
+        mouseShootEnabled = false;
+      });
+      setInterval(() => {
+        if(countDownToShoot > 0){
+          countDownToShoot -= 1;
+        }
+      }, 10);
+      function shootBulletsAction(){
+        moveBullets();
+        if(!controls.isLocked)return;
+        if(mouseShootEnabled){
+          if(!countDownToShoot){
+
+            let sphere = null;
+            let element = null;
+
+            // Recycling bullets
+            const elements = bullets.filter(obj => !obj.enabled);
+            if(elements.length > 0){
+              element = elements[0];
+              sphere = element.mesh;
+              element.enabled = true;
+              element.mesh.visible = true;
+              element.direction = null;
+            }else{
+              // if we can't recycle one, let's create another bullet.
+              sphere = new THREE.Mesh( geoBullet, matBullet );
+              element = {
+                direction: null, // to our bullet direction after release it. 
+                mesh: sphere, // the mesh
+                enabled: true // false: if we might recycle, true: if we might not.
+              };
+              scene.add(sphere);
+              bullets.push(element);
+            }
+            sphere.position.copy(camera.position);// setting up to our current position
+            
+            countDownToShoot = 10;// change it for a better frequency of shooting bullets
+          }
+        }else{
+          countDownToShoot = 0;
+        }
+      }
+      function moveBullets(){
+        bullets.forEach(element => {
+          if(!element.direction){
+            element.direction = new THREE.Vector3();
+            controls.getDirection(element.direction);
+          }
+          if(element.mesh.position.length() > 100) {
+            // recycling after reaching out to 100 units of distance.
+            element.enabled = false;
+            element.mesh.visible = false;
+          }else{
+            element.mesh.position.addScaledVector(element.direction, 0.2);
+          }
+        });
+      }
+
+
+
+      function setSize2dRender(){
+        canvas2d.width = window.innerWidth;
+        canvas2d.height = window.innerWidth;
+      }
+      function drawOn2dRender(){
+        canvas2dCtx.clearRect(0, 0, window.innerWidth, window.innerHeight);
+        canvas2dCtx.beginPath();
+        canvas2dCtx.strokeStyle = 'white';
+        canvas2dCtx.lineWidth = 3;
+        canvas2dCtx.arc(window.innerWidth/2, window.innerHeight/2, 50, 0, 2 * Math.PI);
+        canvas2dCtx.stroke();
+
+
+        //drawing vertical line
+        canvas2dCtx.beginPath();
+        canvas2dCtx.moveTo(window.innerWidth / 2, window.innerHeight / 2 - 60);
+        canvas2dCtx.lineTo(window.innerWidth / 2, window.innerHeight / 2 + 60);
+        canvas2dCtx.stroke();
+        //drawing horizontal line
+        canvas2dCtx.beginPath();
+        canvas2dCtx.moveTo(window.innerWidth / 2 - 60, window.innerHeight / 2);
+        canvas2dCtx.lineTo(window.innerWidth / 2 + 60, window.innerHeight / 2);
+        canvas2dCtx.stroke();
+      }
+
+      function physicsJumpCalcFinalVelocity(jumpInitialVelocity, deltaTime){
+        /*
+        deltaTime is divided by 1000 because it is in milliseconds, so we need to bring it up to seconds.
+        */
+        return jumpInitialVelocity + gravity * deltaTime / 1000.0;
+      }
+      function physicsJumpCalcLastDistance(jumpInitialVelocity, jumpFinalVelocity){
+        return ( Math.pow(jumpFinalVelocity, 2) - Math.pow(jumpInitialVelocity, 2) ) / (2 * gravity);
+      }
+
+      function detectJumpAction(deltaTime){
+        if(jumpFlag){
+          if(jumpFinalVelocity == 0){// if we are not in jumping action, up or down
+            jumpInitialVelocity = 5;// velocity onto Y-axis up
+          }
+        }
+        if( jumpInitialVelocity != 0 ){
+          jumpFinalVelocity = physicsJumpCalcFinalVelocity(jumpInitialVelocity, deltaTime);
+          const distance = physicsJumpCalcLastDistance(jumpInitialVelocity, jumpFinalVelocity);
+          camera.position.y += distance;
+          if(camera.position.y < 0 /* OR there is a collision with any object*/) {
+            camera.position.y = 0; // reset to ZERO or set the top position of object collision.
+            jumpFinalVelocity = jumpInitialVelocity = 0;
+            jumpFlag = false; // if we are not currently jumping, let's set jumpFlag to false
+          }
+          jumpInitialVelocity = jumpFinalVelocity;// the las velocity become in the initial velocity for the next step
+        }
+      }
+
+
+
+      function downloadMultipleGLTF(arrayGLTF){
+        let index = -1;
+        const progressElement = document.getElementById('progress');
+        // setting up elements DIV to reporting statuses
+        arrayGLTF.forEach(element => {
+          const divElement = document.createElement("div");
+          progressElement.appendChild(divElement);
+          divElement.innerHTML = `${element.title} (0%)`;// printing its title and percentage of downloading
+        });
+        function reportProgress(data, progressInfoXHR){
+          const divElement = document.querySelector("#progress>div:nth-child(" + (data.index + 1) + ")");
+          if(data.success){
+            data.mesh = data.success.scene;
+            data.success = null;
+          }
+          if(progressInfoXHR){
+            console.log(`${data.title}, loaded = ${progressInfoXHR.loaded}, total = ${progressInfoXHR.total}`);
+            //printing the downloading progress status
+            divElement.innerHTML = `${data.title} (${(progressInfoXHR.loaded / progressInfoXHR.total * 100).toFixed(2)}%)`;
+          }
+          if(data.error){
+            console.log(data.error);
+            // when error is raised
+            divElement.innerHTML = `${data.title} (error)`;
+          }
+        }
+        downloadNext();// starting with the first element
+        function downloadNext(){
+          index ++;
+          if(index < arrayGLTF.length){// if we can go through our array
+            const currentData = arrayGLTF[index];
+            currentData.index = index; // the index is used to find the div element for setting up its status
+
+            downloadAsync(currentData, reportProgress)
+            .then( onSucess => {
+              currentData.success = onSucess;// setting up its downloading result on "success" field
+              reportProgress(currentData, null);
+              downloadNext();
+            })
+            .catch( onError => {
+              currentData.error = onError;// when an error is raised, add field error with the error response
+              reportProgress(currentData, null);
+              downloadNext();
+            });
+          }
+        }
+
+        function downloadAsync(data, reportProgress){
+          return new Promise((resolve, reject) => {
+
+            gltfLoader.load(
+              // resource URL
+              data.url,
+              function ( gltf ) {
+                resolve(gltf); // if all goes well, call resolve with the success response
+              },
+              function ( xhr ) {
+                reportProgress(data, xhr);// reporting its current progress
+              },
+              function ( error ) {
+                reject(error);// when an error is raised, reject this
+              }
+            );
+          });
+        }
+
+      }
+
+      //calling our multiple downloading objects who contains files.
+      downloadMultipleGLTF(gltfFiles);
+
+      function setDownloadedFiles(){
+        for (const obj of gltfFiles) {
+          if(obj.used)continue;
+          if(obj.mesh){
+            obj.used = true;
+            if(obj.id === 'shooter_weapon'){
+              setShooterWeaponProperties(obj);
+            }
+            obj.mesh = null;
+          }
+        }
+      }
+      function setShooterWeaponProperties(obj){
+        if(obj){
+          shooter_weapon = obj.mesh;
+          scene.add(shooter_weapon);
+        }
+        if(!shooter_weapon) return;
+        const dir = new THREE.Vector3();
+        controls.getDirection(dir);
+        const tmpPos = camera.position.clone().addScaledVector(dir, 2);
+        const pos = camera.position.clone();
+        pos.y += -0.15;
+        shooter_weapon.position.copy(pos);
+        shooter_weapon.lookAt(tmpPos);
+      }
+
+
+    })();
+
+  </script>
+</html>
