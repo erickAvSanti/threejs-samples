@@ -74,17 +74,6 @@
 
       const canvas2d = document.getElementById('atop_render');
       const canvas2dCtx = canvas2d.getContext('2d');
-      let shooterWeaponMesh = null;
-
-      const gltfFiles = [
-        {
-          id: 'shooterWeaponMesh',
-          title: 'shooter weapon',
-          url: './assets/gltf/weapon.gltf?v=1.0',
-          addedToScene: false,
-          mesh: null,
-        },
-      ];
 
 
       const camera = new THREE.PerspectiveCamera( 70, window.innerWidth / window.innerHeight, 0.01, 1000 );
@@ -131,7 +120,7 @@
         detectJumpAction(deltaTime);
         detectCameraMovement();
         setUpDownloadedFiles();
-        setUpShooterWeaponProperties();
+        setUpGunProperties();
         renderer.render( scene, camera );
       }
 
@@ -157,10 +146,12 @@
       });
       
       const controls = new THREE.PointerLockControls( camera, document.body );
-      controls.addEventListener( 'lock', function () {
-      } );
-      controls.addEventListener( 'unlock', function () {
-      } );     
+      controls.addEventListener( 'lock', () => {
+      });
+      controls.addEventListener( 'unlock', () => {
+      });
+      controls.addEventListener( 'change', () => {
+      });
       document.body.addEventListener('click', () => {
         controls.lock();
       });
@@ -223,11 +214,11 @@
               element = elements[0];
               sphere = element.mesh;
               element.enabled = true;
-              element.mesh.visible = true;
               element.direction = null;
             }else{
               // if we can't recycle one, let's create another bullet.
               sphere = new THREE.Mesh( geoBullet, matBullet );
+              sphere.visible = false;
               element = {
                 direction: null, // to our bullet direction after release it. 
                 mesh: sphere, // the mesh
@@ -255,7 +246,12 @@
             element.enabled = false;
             element.mesh.visible = false;
           }else{
-            element.mesh.position.addScaledVector(element.direction, 0.2);
+            if(!element.mesh.visible){
+              element.mesh.visible = true;
+              element.mesh.position.addScaledVector(element.direction, 0.3);
+            }else{
+              element.mesh.position.addScaledVector(element.direction, 3);
+            }
           }
         });
       }
@@ -269,8 +265,8 @@
       function drawOn2dRender(){
         canvas2dCtx.clearRect(0, 0, window.innerWidth, window.innerHeight);
         canvas2dCtx.beginPath();
-        canvas2dCtx.strokeStyle = 'white';
-        canvas2dCtx.lineWidth = 3;
+        canvas2dCtx.strokeStyle = '#ffffffdd';
+        canvas2dCtx.lineWidth = 1;
         canvas2dCtx.arc(window.innerWidth/2, window.innerHeight/2, 50, 0, 2 * Math.PI);
         canvas2dCtx.stroke();
 
@@ -386,37 +382,46 @@
 
       }
 
+
+      
+      let gunMesh = null;// the mesh used to show a gun looking at "point of view"
+
+      const gltfFiles = [
+        {
+          id: 'gunMesh',// the ID for better match
+          title: 'shooter weapon',
+          url: './assets/gltf/weapon.gltf?v=1.1',
+          addedToScene: false,
+          mesh: null,
+        },
+      ];
       //calling our multiple downloading objects who contains files.
       downloadMultipleGLTF(gltfFiles);
 
       function setUpDownloadedFiles(){
         for (const obj of gltfFiles) {
-          if(obj.addedToScene)continue;
+          if(obj.addedToScene)continue;// continue if it is already added to scene
           if(obj.mesh){
             obj.addedToScene = true;
-            if(obj.id === 'shooterWeaponMesh'){
-              setUpShooterWeaponProperties(obj);
+            if(obj.id === 'gunMesh'){
+              //ok, our file downloaded has a gunMesh ID.
+              setUpGunProperties(obj);
             }
           }
         }
       }
-      function setUpShooterWeaponProperties(obj){
-        if(obj && !shooterWeaponMesh){
-          shooterWeaponMesh = obj.mesh;
-          scene.add(shooterWeaponMesh);
+      function setUpGunProperties(obj){
+        if(obj && !gunMesh){
+          gunMesh = obj.mesh;
+          scene.add(gunMesh);
           obj.mesh = null;
         }
-        if(!shooterWeaponMesh) return;
+        if(!gunMesh) return;// if gunMesh is null, then we need no more to do than return.
         const forwardVector = new THREE.Vector3();
-        controls.getDirection(forwardVector);
-        const rightVector = new THREE.Vector3();
-        rightVector.setFromMatrixColumn( camera.matrix, 0 );
-        const relativeUpVector = new THREE.Vector3();
-        relativeUpVector.crossVectors( rightVector, forwardVector ).normalize();
-        const weaponLookAtPoint = camera.position.clone().addScaledVector(forwardVector, 2);
-        const relativeCameraBottomPosition = camera.position.clone().addScaledVector(relativeUpVector, -0.15).addScaledVector(rightVector, 0.05);
-        shooterWeaponMesh.position.copy(relativeCameraBottomPosition);
-        shooterWeaponMesh.lookAt(weaponLookAtPoint);
+        controls.getDirection(forwardVector);// get the direction vector to our camera is seeing.
+        const gunLookAtPoint = camera.position.clone().addScaledVector(forwardVector, 2);// defining the looking at point.
+        gunMesh.position.copy(camera.position);// gunMesh setted up to camera position
+        gunMesh.lookAt(gunLookAtPoint);// anchoring the looking at point.
       }
 
 
