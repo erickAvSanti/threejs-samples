@@ -74,11 +74,11 @@
 
       const canvas2d = document.getElementById('atop_render');
       const canvas2dCtx = canvas2d.getContext('2d');
-      let shooter_weapon = null;
+      let shooterWeaponMesh = null;
 
       const gltfFiles = [
         {
-          id: 'shooter_weapon',
+          id: 'shooterWeaponMesh',
           title: 'shooter weapon',
           url: './assets/gltf/weapon.gltf?v=1.0',
           addedToScene: false,
@@ -130,8 +130,8 @@
         shootBulletsAction();
         detectJumpAction(deltaTime);
         detectCameraMovement();
-        setDownloadedFiles();
-        setShooterWeaponProperties();
+        setUpDownloadedFiles();
+        setUpShooterWeaponProperties();
         renderer.render( scene, camera );
       }
 
@@ -389,31 +389,34 @@
       //calling our multiple downloading objects who contains files.
       downloadMultipleGLTF(gltfFiles);
 
-      function setDownloadedFiles(){
+      function setUpDownloadedFiles(){
         for (const obj of gltfFiles) {
-          if(obj.used)continue;
+          if(obj.addedToScene)continue;
           if(obj.mesh){
-            obj.used = true;
-            if(obj.id === 'shooter_weapon'){
-              setShooterWeaponProperties(obj);
+            obj.addedToScene = true;
+            if(obj.id === 'shooterWeaponMesh'){
+              setUpShooterWeaponProperties(obj);
             }
-            obj.mesh = null;
           }
         }
       }
-      function setShooterWeaponProperties(obj){
-        if(obj){
-          shooter_weapon = obj.mesh;
-          scene.add(shooter_weapon);
+      function setUpShooterWeaponProperties(obj){
+        if(obj && !shooterWeaponMesh){
+          shooterWeaponMesh = obj.mesh;
+          scene.add(shooterWeaponMesh);
+          obj.mesh = null;
         }
-        if(!shooter_weapon) return;
-        const dir = new THREE.Vector3();
-        controls.getDirection(dir);
-        const tmpPos = camera.position.clone().addScaledVector(dir, 2);
-        const pos = camera.position.clone();
-        pos.y += -0.15;
-        shooter_weapon.position.copy(pos);
-        shooter_weapon.lookAt(tmpPos);
+        if(!shooterWeaponMesh) return;
+        const forwardVector = new THREE.Vector3();
+        controls.getDirection(forwardVector);
+        const rightVector = new THREE.Vector3();
+        rightVector.setFromMatrixColumn( camera.matrix, 0 );
+        const relativeUpVector = new THREE.Vector3();
+        relativeUpVector.crossVectors( rightVector, forwardVector ).normalize();
+        const weaponLookAtPoint = camera.position.clone().addScaledVector(forwardVector, 2);
+        const relativeCameraBottomPosition = camera.position.clone().addScaledVector(relativeUpVector, -0.15).addScaledVector(rightVector, 0.05);
+        shooterWeaponMesh.position.copy(relativeCameraBottomPosition);
+        shooterWeaponMesh.lookAt(weaponLookAtPoint);
       }
 
 
